@@ -106,6 +106,31 @@ static void startMdxDecodeThread(MxdrvContext *context){
 	s_mdxDecodeThread = SDL_CreateThread(mdxDecodeThread, "mdxDecodeThread", context);
 }
 
+#ifndef _WIN32
+/* (Unix) */
+/* Case insensitive filename search */
+/* WARNING: does not consider output buffer length */
+/* TODO: should convert filename from sjis to utf8 */
+#include <sys/types.h>
+#include <dirent.h>
+#include <strings.h>
+static bool findfile_unix(char *outbuf, const char *basedir, const char *filename) {
+	DIR *dir = 0;
+	struct dirent *de;
+	dir = opendir(basedir);
+	if (!dir) return false;
+	while ((de = readdir(dir))) {
+		if (!strcasecmp(de->d_name, filename)) {
+			sprintf(outbuf, "%s/%s", basedir, de->d_name);
+			closedir(dir);
+			return true;
+		}
+	}
+	closedir(dir);
+	return false;
+}
+#endif
+
 /* メイン */
 int main(
 	int		argc,
@@ -244,7 +269,10 @@ int main(
 		_splitpath_s(mdxFilePath, NULL, 0, mdxDirName, sizeof(mdxDirName), NULL, 0, NULL, 0);
 		sprintf_s(pdxFilePath, sizeof(pdxFilePath), "%s%s", mdxDirName, pdxFileName);
 #else
-		sprintf(pdxFilePath, "%s/%s", dirname(mdxFilePath), pdxFileName);
+		if (!findfile_unix(pdxFilePath, dirname(mdxFilePath), pdxFileName)) {
+			printf("cannot find pdx file '%s' under mdx file directory.\n", pdxFileName);
+			exit(EXIT_FAILURE);
+		}
 #endif
 		printf("pdx filepath = %s\n", pdxFilePath);
 
