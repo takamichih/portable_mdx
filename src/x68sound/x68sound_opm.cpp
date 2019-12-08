@@ -850,6 +850,10 @@ void Opm::pcmset62(int ndata) {
 					OpmHpfInp[0] = (OpmHpfInp[0]&(int)0xFFFFFC00) << 4;
 					OpmHpfInp[1] = (OpmHpfInp[1]&(int)0xFFFFFC00) << 4;
 
+					// HPF
+					// to prevent DC output?
+					// y[n] - (1 - 1/(1<<10) - 1/(1<<12)) y[n-1] = x[n] - x[n-1];
+					// freqz([1, -1], [1, -0.998779296875])
 					OpmHpfOut[0] = OpmHpfInp[0]-OpmHpfInp_prev[0]
 									+OpmHpfOut[0]-(OpmHpfOut[0]>>10)-(OpmHpfOut[0]>>12);
 					OpmHpfOut[1] = OpmHpfInp[1]-OpmHpfInp_prev[1]
@@ -865,12 +869,22 @@ void Opm::pcmset62(int ndata) {
 //					InpInpOpm[1] = (InpInpOpm[1]&(int)0xFFFFFC00)
 //									>> ((SIZESINTBL_BITS+PRECISION_BITS)-10-5); // 8*-2^17 ～ 8*+2^17
 
+					#if !defined(X68S_DISABLE_LPF)
+					// LPF
+					//
+					// y[n] - (70/(1<<7))y[n-1] = 1/(1<<7)*(x[n] + x[n-1]);
+					// freqz([0.0078125, 0.0078125], [1, -0.546875])
 					InpInpOpm[0] = InpInpOpm[0]*29;
 					InpInpOpm[1] = InpInpOpm[1]*29;
 					InpOpm[0] = (InpInpOpm[0] + InpInpOpm_prev[0]
 						+ InpOpm[0]*70) >> 7;
 					InpOpm[1] = (InpInpOpm[1] + InpInpOpm_prev[1]
 						+ InpOpm[1]*70) >> 7;
+					#else
+					InpOpm[0] = InpInpOpm[0];
+					InpOpm[1] = InpInpOpm[1];
+					#endif
+
 					InpInpOpm_prev[0] = InpInpOpm[0];
 					InpInpOpm_prev[1] = InpInpOpm[1];
 
